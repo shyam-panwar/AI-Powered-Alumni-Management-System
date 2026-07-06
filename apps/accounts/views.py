@@ -96,10 +96,21 @@ class LoginRequestView(APIView):
             )
             return response
 
-        return Response(
-            {'message': 'OTP sent to your registered email.'},
-            status=status.HTTP_200_OK,
-        )
+        # --- DEV MODE: include OTP in response so devs don't need real email ---
+        response_data = {'message': 'OTP sent to your registered email.'}
+        if django_settings.DEBUG:
+            email = request.data.get('email', '').strip().lower()
+            dev_otp = (
+                EmailOTP.objects
+                .filter(email=email, purpose=EmailOTP.LOGIN, is_used=False)
+                .order_by('-created_at')
+                .values_list('otp_code', flat=True)
+                .first()
+            )
+            if dev_otp:
+                response_data['dev_otp'] = dev_otp
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
     if HAS_RATELIMIT:
         post = method_decorator(ratelimit(key='ip', rate='10/m', method='POST', block=False))(post)

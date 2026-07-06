@@ -355,13 +355,41 @@ ws.onmessage = (event) => {
 1. Push code to GitHub
 2. Go to render.com → New → Blueprint
 3. Connect your GitHub repository
-4. Render will detect render.yaml and create all services automatically
-5. Set environment variables in Render dashboard:
-   - OPENAI_API_KEY
-   - RAZORPAY_KEY_ID
-   - RAZORPAY_KEY_SECRET
-   - DEFAULT_FROM_EMAIL
-6. Deploy!
+4. Render will detect `render.yaml` and create the web, Redis, PostgreSQL, worker, and beat services automatically
+5. Set the required environment variables in Render:
+  - `ALLOWED_HOSTS` with your Render domain, for example `your-app.onrender.com`
+  - `OPENAI_API_KEY`
+  - `RAZORPAY_KEY_ID`
+  - `RAZORPAY_KEY_SECRET`
+  - `DEFAULT_FROM_EMAIL`
+  - `EMAIL_HOST_USER`
+  - `EMAIL_HOST_PASSWORD`
+  - `GROQ_API_KEY` if you use the Groq-powered AI tools
+  - `GEMINI_API_KEY` if you use Gemini-based parsing
+  - `AFFINDA_API_KEY` and related Affinda IDs if you use Affinda parsing
+6. Deploy
+
+### Render Notes
+
+- `DJANGO_SETTINGS_MODULE` is set to `alumni_platform.settings.prod` in `render.yaml`
+- `ENVIRONMENT=prod` is used to force production settings selection
+- Migrations run before deploy, and Celery worker/beat services are included in the blueprint
+- Use a long random `SECRET_KEY`; Render can generate it automatically
+
+### Render Environment Variables
+
+Set these in the Render dashboard if you are not relying entirely on the blueprint-generated values:
+
+- `ALLOWED_HOSTS` - your Render app domain, for example `your-app.onrender.com`
+- `OPENAI_API_KEY`
+- `RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
+- `DEFAULT_FROM_EMAIL`
+- `EMAIL_HOST_USER`
+- `EMAIL_HOST_PASSWORD`
+- `GROQ_API_KEY` if you use the Groq AI tools
+- `GEMINI_API_KEY` if you use Gemini-based parsing
+- `AFFINDA_API_KEY`, `AFFINDA_WORKSPACE_ID`, and `AFFINDA_COLLECTION_ID` if you use Affinda parsing
 
 ### Deploy with Docker
 ```bash
@@ -515,3 +543,9 @@ MIT License — see LICENSE file for details.
 
 Built with Django, OpenAI, Razorpay, Redis, PostgreSQL, and Django Channels.
 Final Year Capstone Project — 2024-25.
+
+
+
+
+run ##
+D:\AI-Powered-Alumni-Management-System\AI-Powered-Alumni-Management-System> & 'C:\Users\shyam\AppData\Local\Programs\Python\Python311\python.exe' manage.py runserver 127.0.0.1:8000

@@ -5,12 +5,22 @@ import dj_database_url
 # Security
 DEBUG = False
 SECRET_KEY = config('SECRET_KEY')
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='').split(',') if host.strip()]
 
 # Render provides RENDER_EXTERNAL_HOSTNAME automatically
 RENDER_EXTERNAL_HOSTNAME = config('RENDER_EXTERNAL_HOSTNAME', default=None)
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # HTTPS Security headers (enable when SSL is configured)
 SECURE_BROWSER_XSS_FILTER = True
@@ -135,3 +145,8 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [
         'django.template.loaders.app_directories.Loader',
     ]),
 ]
+
+csrf_trusted_origins = ['http://localhost:8000', 'http://127.0.0.1:8000']
+if RENDER_EXTERNAL_HOSTNAME:
+    csrf_trusted_origins.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+CSRF_TRUSTED_ORIGINS = csrf_trusted_origins

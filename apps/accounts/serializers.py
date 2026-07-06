@@ -129,9 +129,6 @@ class OTPVerificationSerializer(serializers.Serializer):
                 "OTP has expired. Please request a new one."
             )
 
-        if not otp.is_valid():
-            raise serializers.ValidationError("OTP has already been used.")
-
         data['otp_instance'] = otp
         return data
 
@@ -239,9 +236,6 @@ class LoginOTPSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "OTP has expired. Please request a new one."
             )
-
-        if not otp.is_valid():
-            raise serializers.ValidationError("OTP has already been used.")
 
         data['otp_instance'] = otp
         return data

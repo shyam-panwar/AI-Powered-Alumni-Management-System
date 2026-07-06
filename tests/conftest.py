@@ -1,3 +1,8 @@
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'alumni_platform.settings.dev')
+django.setup()
+
 import pytest
 from django.utils import timezone
 from datetime import timedelta

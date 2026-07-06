@@ -111,7 +111,16 @@
 
         <h1 class="text-2xl font-extrabold text-slate-900 mb-1">Enter your code</h1>
         <p class="text-sm text-slate-500 mb-1">We sent a 6-digit code to</p>
-        <p class="text-sm font-semibold text-slate-800 mb-7" id="step2-email-display"></p>
+        <p class="text-sm font-semibold text-slate-800 mb-4" id="step2-email-display"></p>
+
+        {% if debug %}
+        <!-- DEV MODE: OTP shown directly — only visible when DEBUG=True -->
+        <div id="dev-otp-banner" class="mb-5 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-center hidden">
+          <p class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">⚡ Dev Mode — Your OTP</p>
+          <p id="dev-otp-code" class="text-2xl font-bold text-amber-800 tracking-widest"></p>
+          <p class="text-xs text-amber-600 mt-1">This banner only appears when DEBUG=True</p>
+        </div>
+        {% endif %}
 
         <!-- 6-box OTP -->
         <div class="flex items-center justify-center gap-2 mb-5" id="otp-boxes">
@@ -230,6 +239,20 @@
       document.getElementById('step-1').classList.add('hidden');
       document.getElementById('step-2').classList.remove('hidden');
       startResendTimer();
+
+      // DEV MODE: show OTP banner if returned
+      if (result.data.dev_otp) {
+        const banner = document.getElementById('dev-otp-banner');
+        const codeEl = document.getElementById('dev-otp-code');
+        if (banner && codeEl) {
+          codeEl.textContent = result.data.dev_otp;
+          banner.classList.remove('hidden');
+          // Auto-fill the OTP boxes
+          const otpStr = result.data.dev_otp.toString();
+          boxes.forEach((b, i) => { b.value = otpStr[i] || ''; });
+        }
+      }
+
       setTimeout(() => document.querySelectorAll('.otp-box')[0].focus(), 100);
     } else {
       const msg = extractErrorMessage(result.error);
