@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
+from decouple import config        # new adede
 
 from .models import EmailOTP
 from .validators import (
@@ -97,10 +98,19 @@ class UserRegistrationSerializer(serializers.Serializer):
         )
 
         # Send OTP — use Celery if available, otherwise send directly (dev)
-        try:
-            from .tasks import send_otp_email_task
-            send_otp_email_task.delay(user.id, email, otp_code, EmailOTP.REGISTRATION)
-        except Exception:
+        USE_CELERY = config('USE_CELERY', default=False, cast=bool)
+        if USE_CELERY:
+            try:
+                from .tasks import send_otp_email_task
+                send_otp_email_task.delay(user.id, email, otp_code, EmailOTP.REGISTRATION)
+            except Exception:
+                send_otp_email(user.id, email, otp_code, EmailOTP.REGISTRATION)
+        # try:
+        #     from .tasks import send_otp_email_task
+        #     send_otp_email_task.delay(user.id, email, otp_code, EmailOTP.REGISTRATION)
+        # except Exception:
+        #     send_otp_email(user.id, email, otp_code, EmailOTP.REGISTRATION)
+        else:
             send_otp_email(user.id, email, otp_code, EmailOTP.REGISTRATION)
 
         return user
@@ -205,10 +215,21 @@ class LoginRequestSerializer(serializers.Serializer):
             expires_at=timezone.now() + timedelta(minutes=10),
         )
 
-        try:
-            from .tasks import send_otp_email_task
-            send_otp_email_task.delay(user.id, user.email, otp_code, EmailOTP.LOGIN)
-        except Exception:
+        USE_CELERY = config('USE_CELERY', default=False, cast=bool)
+        if USE_CELERY:
+            try:
+                from .tasks import send_otp_email_task
+                send_otp_email_task.delay(user.id, user.email, otp_code, EmailOTP.LOGIN)
+            except Exception:
+                send_otp_email(user.id, user.email, otp_code, EmailOTP.LOGIN)
+
+        # try:
+        #     from .tasks import send_otp_email_task
+        #     send_otp_email_task.delay(user.id, user.email, otp_code, EmailOTP.LOGIN)
+        # except Exception:
+        #     send_otp_email(user.id, user.email, otp_code, EmailOTP.LOGIN)
+
+        else:
             send_otp_email(user.id, user.email, otp_code, EmailOTP.LOGIN)
 
         return user

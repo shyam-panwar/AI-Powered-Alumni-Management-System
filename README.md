@@ -549,3 +549,34 @@ Final Year Capstone Project — 2024-25.
 
 run ##
 D:\AI-Powered-Alumni-Management-System\AI-Powered-Alumni-Management-System> & 'C:\Users\shyam\AppData\Local\Programs\Python\Python311\python.exe' manage.py runserver 127.0.0.1:8000
+
+
+
+
+<!-- final run in terminal -->
+
+Windows PowerShell me local run ke liye ye steps use karo:
+Set-Location D:\AI-Powered-Alumni-Management-System\AI-Powered-Alumni-Management-System
+
+Agar pehli baar run kar rahe ho to dependencies install karo:
+
+& 'C:\Users\shyam\AppData\Local\Programs\Python\Python311\python.exe' -m pip install -r requirements.txt
+
+Dev environment set karo:
+
+$env:DJANGO_SETTINGS_MODULE='alumni_platform.settings.dev'
+$env:ENVIRONMENT='dev'
+$env:ALLOWED_HOSTS='localhost,127.0.0.1,testserver'
+
+Database migrate karo:
+
+& 'C:\Users\shyam\AppData\Local\Programs\Python\Python311\python.exe' manage.py migrate --settings=alumni_platform.settings.dev
+
+Server run karo:
+
+& 'C:\Users\shyam\AppData\Local\Programs\Python\Python311\python.exe' manage.py runserver 127.0.0.1:8000
+
+Agar WinError 10048 aaye to port 8000 pe pehle se server chal raha hai. Usko band karo:
+
+Get-NetTCPConnection -LocalPort 8000 -State Listen
+Stop-Process -Id <PID>
