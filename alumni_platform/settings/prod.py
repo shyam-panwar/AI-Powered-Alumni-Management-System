@@ -75,6 +75,19 @@ else:
         }
     }
 
+# Throttling — use cache only if Redis is available, else disable
+if _redis_url:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ]
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        'anon': '100/day',
+        'user': '1000/day',
+    }
+else:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+
 # Static files — WhiteNoise in production
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATIC_URL = '/static/'
