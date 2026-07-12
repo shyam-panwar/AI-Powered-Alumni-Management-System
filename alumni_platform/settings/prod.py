@@ -103,18 +103,35 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # ── Email ─────────────────────────────────────────────────────
+# Switch provider via EMAIL_PROVIDER env variable:
+#   brevo | sendgrid | resend | mailgun | smtp
+EMAIL_PROVIDER = config('EMAIL_PROVIDER', default='brevo')
+
+# Common sender settings
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@alumniai.com')
+EMAIL_SENDER = config('EMAIL_SENDER', default=DEFAULT_FROM_EMAIL)
+EMAIL_SENDER_NAME = config('EMAIL_SENDER_NAME', default='AlumniAI')
+
+# Brevo — https://app.brevo.com → API Keys
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+
+# SendGrid — https://app.sendgrid.com → Settings → API Keys
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+
+# Resend — https://resend.com → API Keys
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
+
+# Mailgun — https://app.mailgun.com → API Keys
+MAILGUN_API_KEY = config('MAILGUN_API_KEY', default='')
+MAILGUN_DOMAIN = config('MAILGUN_DOMAIN', default='')
+
+# SMTP fallback (dev/local)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-
-# ── Brevo API (preferred over SMTP — never blocked by cloud providers) ────
-BREVO_API_KEY = config('BREVO_API_KEY', default='')
-BREVO_SENDER_EMAIL = config('BREVO_SENDER_EMAIL', default=DEFAULT_FROM_EMAIL)
-BREVO_SENDER_NAME = config('BREVO_SENDER_NAME', default='AlumniAI')
 
 # ── CORS ──────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = []
