@@ -1,8 +1,9 @@
 from .base import *
 from decouple import config
 import dj_database_url
+import os
 
-# Security
+# ── Security ──────────────────────────────────────────────────
 DEBUG = False
 SECRET_KEY = config('SECRET_KEY')
 ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='').split(',') if host.strip()]
@@ -21,46 +22,28 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-
-# HTTPS Security headers (enable when SSL is configured)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'same-origin'
 
-# Force HTTPS in production
-# Uncomment these ONLY after SSL certificate is set up:
-# SECURE_SSL_REDIRECT = True
-# SECURE_HSTS_SECONDS = 31536000
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
-
-# Database — Supabase PostgreSQL via DATABASE_URL
+# ── Database — Supabase via DATABASE_URL ──────────────────────
 database_url = config('DATABASE_URL', default='')
 if database_url:
     DATABASES = {
-        'default': dj_database_url.parse(database_url, conn_max_age=600)
+        'default': dj_database_url.parse(
+            database_url,
+            conn_max_age=0,          # Supabase PgBouncer compatibility
+            conn_health_checks=True,
+        )
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='alumni_db'),
-            'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default=''),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 60,
-            'OPTIONS': {
-                'connect_timeout': 10,
-            },
-        }
-    }
+    raise Exception("DATABASE_URL environment variable is required in production!")
 
-# Cache — Redis if available, else in-memory fallback
+# ── Redis ─────────────────────────────────────────────────────
 _redis_url = config('REDIS_URL', default='')
+
+# Cache
 if _redis_url:
     CACHES = {
         'default': {
@@ -75,7 +58,7 @@ else:
         }
     }
 
-# Throttling — use cache only if Redis is available, else disable
+# Throttling — disable if no Redis (avoids crashes)
 if _redis_url:
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
         'rest_framework.throttling.AnonRateThrottle',
@@ -88,32 +71,12 @@ if _redis_url:
 else:
     REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
 
-# Static files — WhiteNoise in production
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATIC_URL = '/static/'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Email — SMTP in production
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-
-# Channels — Redis if available, else in-memory
+# Channels
 if _redis_url:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [_redis_url],
-            },
+            'CONFIG': {'hosts': [_redis_url]},
         },
     }
 else:
@@ -123,52 +86,96 @@ else:
         },
     }
 
-# Celery — Redis broker in production
-CELERY_BROKER_URL = _redis_url or 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = _redis_url or 'redis://localhost:6379/0'
-
-# No worker running — run tasks eagerly (inline)
+# Celery
+CELERY_BROKER_URL = _redis_url or None
+CELERY_RESULT_BACKEND = _redis_url or None
+# Run tasks inline (no separate worker needed on free tier)
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
-# Logging — file-based in production
+# ── Static files ──────────────────────────────────────────────
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# ── Media files ───────────────────────────────────────────────
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ── Email ─────────────────────────────────────────────────────
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+
+# ── CORS — add production domain ──────────────────────────────
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:8000',
+]
+if RENDER_EXTERNAL_HOSTNAME:
+    CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+
+# Add any extra origins from env
+_extra_origins = config('CORS_ALLOWED_ORIGINS', default='')
+for origin in _extra_origins.split(','):
+    origin = origin.strip()
+    if origin:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
+# ── CSRF ──────────────────────────────────────────────────────
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+if RENDER_EXTERNAL_HOSTNAME:
+    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
+
+# ── Logging — console only (no file logging on Render) ────────
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
     },
     'handlers': {
-        'file': {
-            'level': 'ERROR',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'django_prod.log',
-            'maxBytes': 10485760,  # 10MB
-            'backupCount': 5,
-            'formatter': 'verbose',
-        },
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
             'level': 'ERROR',
-            'propagate': True,
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
         },
         'admin_access': {
-            'handlers': ['file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
     },
 }
 
-# Production template caching
+# ── Template caching ──────────────────────────────────────────
 TEMPLATES[0]['APP_DIRS'] = False
 TEMPLATES[0]['OPTIONS']['loaders'] = [
     ('django.template.loaders.cached.Loader', [
@@ -176,8 +183,3 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [
         'django.template.loaders.app_directories.Loader',
     ]),
 ]
-
-csrf_trusted_origins = ['http://localhost:8000', 'http://127.0.0.1:8000']
-if RENDER_EXTERNAL_HOSTNAME:
-    csrf_trusted_origins.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
-CSRF_TRUSTED_ORIGINS = csrf_trusted_origins

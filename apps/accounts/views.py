@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.conf import settings as django_settings
 from datetime import timedelta
 from django.utils.decorators import method_decorator
 from rest_framework.views import APIView
