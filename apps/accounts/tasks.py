@@ -1,6 +1,6 @@
 import logging
+import requests
 from django.conf import settings
-from django.core.mail import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ Do not share this OTP with anyone.
       <p>Use the one-time password below to complete your request on <strong>AlumniAI</strong>.</p>
       <div class="otp-box"><div class="otp-code">{otp_code}</div></div>
       <p style="text-align:center;color:#6B7280;font-size:14px">This OTP expires in <strong>10 minutes</strong>.</p>
-      <div class="warn">&#9888;&#65039; <strong>Do not share this OTP with anyone.</strong> AlumniAI staff will never ask for your OTP.</div>
+      <div class="warn">&#9888; <strong>Do not share this OTP with anyone.</strong> AlumniAI staff will never ask for your OTP.</div>
       <p style="margin-top:24px">If you did not request this, please ignore this email.</p>
       <p>— The AlumniAI Team</p>
     </div>
@@ -56,23 +56,68 @@ Do not share this OTP with anyone.
     return subject, plain, html
 
 
+def _send_via_brevo(to_email, subject, html_content, plain_content):
+    """Send email via Brevo (Sendinblue) REST API — no SMTP, no port issues."""
+    api_key = getattr(settings, 'BREVO_API_KEY', '')
+    sender_email = getattr(settings, 'BREVO_SENDER_EMAIL', settings.DEFAULT_FROM_EMAIL)
+    sender_name = getattr(settings, 'BREVO_SENDER_NAME', 'AlumniAI')
+
+    if not api_key:
+        raise ValueError("BREVO_API_KEY is not set in settings.")
+
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content,
+        "textContent": plain_content,
+    }
+
+    response = requests.post(
+        "https://api.brevo.com/v3/smtp/email",
+        json=payload,
+        headers={
+            "accept": "application/json",
+            "api-key": api_key,
+            "content-type": "application/json",
+        },
+        timeout=15,
+    )
+
+    if response.status_code not in (200, 201):
+        raise Exception(
+            f"Brevo API error {response.status_code}: {response.text}"
+        )
+
+    logger.info(f"Email sent via Brevo to {to_email} — messageId: {response.json().get('messageId')}")
+
+
 def send_otp_email(user_id, email, otp_code, purpose):
     """
-    Send OTP email synchronously.
+    Send OTP email via Brevo API (HTTPS — never blocked by cloud providers).
+    Falls back to Django SMTP if BREVO_API_KEY is not configured.
     Raises exception on failure so callers know if email failed.
     """
     subject, plain, html = _build_otp_email(otp_code, purpose)
 
     logger.info(f"Sending OTP email to {email} (user_id={user_id}, purpose={purpose})")
 
-    send_mail(
-        subject=subject,
-        message=plain,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        html_message=html,
-        fail_silently=False,
-    )
+    brevo_key = getattr(settings, 'BREVO_API_KEY', '')
+
+    if brevo_key:
+        # Use Brevo API — HTTPS, no SMTP port needed
+        _send_via_brevo(email, subject, html, plain)
+    else:
+        # Fallback to Django SMTP (dev mode)
+        from django.core.mail import send_mail
+        send_mail(
+            subject=subject,
+            message=plain,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            html_message=html,
+            fail_silently=False,
+        )
 
     logger.info(f"OTP email sent successfully to {email}")
 
