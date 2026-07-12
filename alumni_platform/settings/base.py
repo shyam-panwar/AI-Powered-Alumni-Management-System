@@ -117,6 +117,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 
 # REST Framework Configuration
+# NOTE: DEFAULT_THROTTLE_CLASSES is intentionally empty here.
+# Throttling requires a cache backend (Redis). dev.py and prod.py enable it
+# only when Redis is confirmed available, to avoid connection errors at startup.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'utils.authentication.JWTCookieAuthentication',
@@ -130,10 +133,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ],
+    'DEFAULT_THROTTLE_CLASSES': [],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
         'user': '1000/day',
@@ -168,23 +168,20 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
-CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+# NOTE: CELERY_BROKER_URL and CELERY_RESULT_BACKEND are intentionally NOT set here.
+# Setting them to redis://localhost:6379 as a default causes connection errors on
+# any environment without Redis. dev.py and prod.py define these based on environment.
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Kolkata'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# Channels Configuration (WebSocket)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [config('REDIS_URL', default='redis://localhost:6379/1')],
-        },
-    },
-}
+# Channel Layers (WebSocket)
+# NOTE: CHANNEL_LAYERS is intentionally NOT set here.
+# channels_redis requires a live Redis connection at startup. A localhost default
+# causes crashes on environments without Redis.
+# dev.py uses InMemoryChannelLayer; prod.py configures based on REDIS_URL.
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -243,7 +240,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
 ]
 
-# Logging
+# Logging — console only by default; prod.py overrides fully
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -258,31 +255,19 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'WARNING',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
-            'formatter': 'verbose',
-        },
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
         },
-        'admin_access_file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'admin_access.log',
-            'formatter': 'verbose',
-        },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'WARNING',
             'propagate': True,
         },
         'admin_access': {
-            'handlers': ['admin_access_file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },

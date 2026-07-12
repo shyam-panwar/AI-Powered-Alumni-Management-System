@@ -1,14 +1,13 @@
 from .base import *
 from decouple import config
 import dj_database_url
-import os
 
 # ── Security ──────────────────────────────────────────────────
 DEBUG = False
 SECRET_KEY = config('SECRET_KEY')
-ALLOWED_HOSTS = [host.strip() for host in config('ALLOWED_HOSTS', default='').split(',') if host.strip()]
+ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS', default='').split(',') if h.strip()]
 
-# Render provides RENDER_EXTERNAL_HOSTNAME automatically
+# Render injects this automatically — use it so ALLOWED_HOSTS works without manual config
 RENDER_EXTERNAL_HOSTNAME = config('RENDER_EXTERNAL_HOSTNAME', default=None)
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -27,23 +26,22 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'same-origin'
 
-# ── Database — Supabase via DATABASE_URL ──────────────────────
-database_url = config('DATABASE_URL', default='')
-if database_url:
-    DATABASES = {
-        'default': dj_database_url.parse(
-            database_url,
-            conn_max_age=0,          # Supabase PgBouncer compatibility
-            conn_health_checks=True,
-        )
-    }
-else:
-    raise Exception("DATABASE_URL environment variable is required in production!")
+# ── Database — Supabase PostgreSQL via DATABASE_URL ───────────
+_db_url = config('DATABASE_URL', default='')
+if not _db_url:
+    raise Exception('DATABASE_URL must be set in production!')
+
+DATABASES = {
+    'default': dj_database_url.parse(
+        _db_url,
+        conn_max_age=0,   # always fresh connections — required for Supabase PgBouncer
+    )
+}
 
 # ── Redis ─────────────────────────────────────────────────────
 _redis_url = config('REDIS_URL', default='')
 
-# Cache
+# Cache — Redis when available, in-memory fallback otherwise
 if _redis_url:
     CACHES = {
         'default': {
@@ -58,20 +56,23 @@ else:
         }
     }
 
-# Throttling — disable if no Redis (avoids crashes)
-if _redis_url:
-    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle',
-    ]
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+# Throttling — enable only when Redis is available (requires shared cache)
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    'DEFAULT_THROTTLE_CLASSES': (
+        [
+            'rest_framework.throttling.AnonRateThrottle',
+            'rest_framework.throttling.UserRateThrottle',
+        ]
+        if _redis_url else []
+    ),
+    'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
         'user': '1000/day',
-    }
-else:
-    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    },
+}
 
-# Channels
+# WebSocket channel layers
 if _redis_url:
     CHANNEL_LAYERS = {
         'default': {
@@ -86,12 +87,11 @@ else:
         },
     }
 
-# Celery
-CELERY_BROKER_URL = _redis_url or None
-CELERY_RESULT_BACKEND = _redis_url or None
-# Run tasks inline (no separate worker needed on free tier)
+# Celery — tasks run inline in the web process (no separate worker on free tier)
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_URL = _redis_url or 'memory://'
+CELERY_RESULT_BACKEND = _redis_url or 'cache+memory://'
 
 # ── Static files ──────────────────────────────────────────────
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -111,27 +111,22 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
-# ── CORS — add production domain ──────────────────────────────
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://localhost:8000',
-]
+# ── CORS ──────────────────────────────────────────────────────
+CORS_ALLOWED_ORIGINS = []
 if RENDER_EXTERNAL_HOSTNAME:
     CORS_ALLOWED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
-
-# Add any extra origins from env
-_extra_origins = config('CORS_ALLOWED_ORIGINS', default='')
-for origin in _extra_origins.split(','):
-    origin = origin.strip()
-    if origin:
-        CORS_ALLOWED_ORIGINS.append(origin)
+# Allow extra origins via env (comma-separated)
+for _origin in config('CORS_ALLOWED_ORIGINS', default='').split(','):
+    _origin = _origin.strip()
+    if _origin:
+        CORS_ALLOWED_ORIGINS.append(_origin)
 
 # ── CSRF ──────────────────────────────────────────────────────
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+CSRF_TRUSTED_ORIGINS = []
 if RENDER_EXTERNAL_HOSTNAME:
     CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_EXTERNAL_HOSTNAME}')
 
-# ── Logging — console only (no file logging on Render) ────────
+# ── Logging — console only (Render has no persistent filesystem) ──
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -152,26 +147,10 @@ LOGGING = {
         'level': 'INFO',
     },
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django.request': {
-            'handlers': ['console'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'celery': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'admin_access': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
+        'django': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+        'celery': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'admin_access': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
     },
 }
 

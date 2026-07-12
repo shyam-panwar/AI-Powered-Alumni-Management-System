@@ -1,11 +1,11 @@
 # ── Core Django ───────────────────────────────────────────────
 Django==4.2.26
 djangorestframework==3.14.0
-djangorestframework-simplejwt>=5.3.1
+djangorestframework-simplejwt==5.3.1
 asgiref==3.8.1
 
 # ── Database ──────────────────────────────────────────────────
-psycopg2-binary>=2.9.9
+psycopg2-binary==2.9.9
 dj-database-url==2.1.0
 
 # ── Auth / Security ───────────────────────────────────────────
@@ -22,16 +22,16 @@ channels-redis==4.1.0
 celery==5.3.6
 redis==5.0.1
 django-celery-beat==2.5.0
-kombu==5.5.4
-billiard==4.2.4
+kombu==5.3.4
+billiard==4.2.1
 vine==5.1.0
-amqp==5.3.1
+amqp==5.2.0
 
 # ── Static Files ──────────────────────────────────────────────
 whitenoise==6.7.0
 
 # ── Media / Images ────────────────────────────────────────────
-Pillow>=10.1.0
+Pillow==10.4.0
 django-imagekit==6.1.0
 pilkit==3.0
 
@@ -42,19 +42,17 @@ python-decouple==3.8
 django-taggit==6.1.0
 
 # ── AI / ML ───────────────────────────────────────────────────
-openai==1.6.1
-affinda==4.27.0
-google-generativeai>=0.8.0
-google-genai>=0.8.0
-groq>=1.2.0
+openai==1.35.0
+google-genai==0.8.0
+groq==1.2.0
 
 # ── Payments ──────────────────────────────────────────────────
-razorpay>=2.0.1
+razorpay==2.0.1
 
 # ── Document Parsing ──────────────────────────────────────────
 PyPDF2==3.0.1
 python-docx==1.1.0
-lxml>=3.1.0
+lxml==5.2.2
 
 # ── HTTP ──────────────────────────────────────────────────────
 requests==2.32.4
@@ -63,10 +61,3 @@ httpx==0.28.1
 # ── Production Server ─────────────────────────────────────────
 gunicorn==23.0.0
 uvicorn[standard]==0.33.0
-
-# ── Dev / Debug ───────────────────────────────────────────────
-django-debug-toolbar==4.2.0
-pytest-django==4.10.0
-
-
-pytest-cov==4.1.0

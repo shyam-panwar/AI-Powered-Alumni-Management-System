@@ -13,7 +13,7 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: alumni_platform.settings.prod
       - key: SECRET_KEY
-        generateValue: true
+        sync: false
       - key: DEBUG
         value: 'False'
       - key: DATABASE_URL
@@ -42,43 +42,3 @@ services:
     name: alumniai-redis
     plan: free
     ipAllowList: []
-
-  - type: worker
-    name: alumniai-worker
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A alumni_platform worker --loglevel=info
-    envVars:
-      - key: ENVIRONMENT
-        value: prod
-      - key: DJANGO_SETTINGS_MODULE
-        value: alumni_platform.settings.prod
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          name: alumniai-redis
-          type: redis
-          property: connectionString
-
-  - type: worker
-    name: alumniai-beat
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A alumni_platform beat --loglevel=info
-    envVars:
-      - key: ENVIRONMENT
-        value: prod
-      - key: DJANGO_SETTINGS_MODULE
-        value: alumni_platform.settings.prod
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          name: alumniai-redis
-          type: redis
-          property: connectionString
