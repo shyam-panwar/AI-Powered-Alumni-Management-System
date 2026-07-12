@@ -5,7 +5,7 @@ djangorestframework-simplejwt==5.3.1
 asgiref==3.8.1
 
 # ── Database ──────────────────────────────────────────────────
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 dj-database-url==2.1.0
 
 # ── Auth / Security ───────────────────────────────────────────
