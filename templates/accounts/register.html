@@ -223,6 +223,14 @@
     btnText.textContent = 'Creating account…';
     spinner.classList.remove('hidden');
 
+    // Show "still working" message after 5s (Render cold start can take 30-50s)
+    const slowTimer = setTimeout(() => {
+      if (btn.disabled) btnText.textContent = 'Almost there…';
+    }, 5000);
+    const verySlowTimer = setTimeout(() => {
+      if (btn.disabled) btnText.textContent = 'Server warming up…';
+    }, 15000);
+
     const payload = {
       first_name: document.getElementById('first_name').value.trim(),
       last_name: document.getElementById('last_name').value.trim(),
@@ -238,6 +246,8 @@
     btn.disabled = false;
     btnText.textContent = 'Create Account';
     spinner.classList.add('hidden');
+    clearTimeout(slowTimer);
+    clearTimeout(verySlowTimer);
 
     if (result.ok) {
       window.location.href = `/auth/verify-otp/?email=${encodeURIComponent(payload.email)}&purpose=registration`;

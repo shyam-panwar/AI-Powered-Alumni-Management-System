@@ -217,11 +217,21 @@
     btnText.textContent = 'Sending…';
     spinner.classList.remove('hidden');
 
+    // Show "still working" message for Render cold start
+    const slowTimer = setTimeout(() => {
+      if (btn.disabled) btnText.textContent = 'Almost there…';
+    }, 5000);
+    const verySlowTimer = setTimeout(() => {
+      if (btn.disabled) btnText.textContent = 'Server warming up…';
+    }, 15000);
+
     const result = await apiPost('/api/accounts/login/', { email, role: selectedRole });
 
     btn.disabled = false;
     btnText.textContent = 'Send OTP';
     spinner.classList.add('hidden');
+    clearTimeout(slowTimer);
+    clearTimeout(verySlowTimer);
 
     if (result.ok) {
       // --- DEMO MODE BYPASS ---
